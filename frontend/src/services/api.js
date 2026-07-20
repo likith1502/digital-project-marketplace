@@ -41,15 +41,41 @@ const API = axios.create({
 API.interceptors.request.use(
   (config) => {
     if (typeof window !== "undefined") {
-      let token = null;
-      const isApiAdmin = config.url && (config.url.startsWith("/api/admin") || config.url.includes("/admin/"));
-      if (isApiAdmin) {
-        token = localStorage.getItem("ph-admin-token") || localStorage.getItem("ph-user-token");
-      } else {
-        token = localStorage.getItem("ph-user-token") || localStorage.getItem("ph-admin-token");
+      const urlStr = config.url || "";
+      let pathname = urlStr;
+      if (urlStr.startsWith("http://") || urlStr.startsWith("https://")) {
+        try {
+          pathname = new URL(urlStr).pathname;
+        } catch (e) {
+          pathname = urlStr;
+        }
       }
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+
+      // Check if this is a public GET request
+      const isGet = config.method && config.method.toLowerCase() === "get";
+      const isPublicGet = isGet && (
+        pathname === "/api/domains" ||
+        pathname.startsWith("/api/domains/") ||
+        pathname === "/api/categories" ||
+        pathname === "/api/projects" ||
+        pathname.startsWith("/api/projects/") ||
+        pathname === "/api/search" ||
+        pathname.includes("/book-promotion") ||
+        pathname.includes("/contact-info")
+      ) && !pathname.includes("/purchases") && !pathname.includes("/downloads");
+
+      if (!isPublicGet) {
+        let token = null;
+        const isApiAdmin = pathname.startsWith("/api/admin") || pathname.includes("/admin/");
+        if (isApiAdmin) {
+          token = localStorage.getItem("ph-admin-token") || localStorage.getItem("ph-user-token");
+        } else {
+          token = localStorage.getItem("ph-user-token") || localStorage.getItem("ph-admin-token");
+        }
+        
+        if (token && token !== "undefined" && token !== "null" && token.trim() !== "") {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
       }
     }
     return config;
