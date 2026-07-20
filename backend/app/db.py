@@ -7,38 +7,40 @@ db = None
 
 def init_db(app):
     global client, db
-    client = MongoClient(app.config["MONGO_URI"])
-    # Mongo URI includes DB name; if not, fallback
-    # Mongo URI may include DB name. Avoid truthiness check on Database objects.
     try:
-        _default_db = client.get_default_database()
-    except Exception:
-        _default_db = None
-    db = _default_db if _default_db is not None else client["tech_marketplace"]
+        client = MongoClient(app.config["MONGO_URI"], serverSelectionTimeoutMS=5000)
+        # Mongo URI includes DB name; if not, fallback
+        try:
+            _default_db = client.get_default_database()
+        except Exception:
+            _default_db = None
+        db = _default_db if _default_db is not None else client["tech_marketplace"]
 
-    # indexes + TTL
-    db["users"].create_index("email", unique=True)
-    db["categories"].create_index("name", unique=True)
-    db["domains"].create_index("name", unique=True)
-    db["projects"].create_index("domainId")
-    db["files"].create_index("projectId")
-    db["purchases"].create_index([("user_id", 1), ("project_id", 1), ("status", 1)])
-    db["purchases"].create_index("razorpay_order_id")
-    db["wishlist"].create_index([("user_id", 1), ("project_id", 1)], unique=True)
-    db["reviews"].create_index("project_id")
-    db["notifications"].create_index("user_id")
-    db["webhook_events"].create_index("created_at", expireAfterSeconds=60*60*24*7)  # 7 days
-    db["audit_logs"].create_index("created_at", expireAfterSeconds=60*60*24*30)     # 30 days
-    db["audit_logs"].create_index("actor_email")
+        # indexes + TTL
+        db["users"].create_index("email", unique=True)
+        db["categories"].create_index("name", unique=True)
+        db["domains"].create_index("name", unique=True)
+        db["projects"].create_index("domainId")
+        db["files"].create_index("projectId")
+        db["purchases"].create_index([("user_id", 1), ("project_id", 1), ("status", 1)])
+        db["purchases"].create_index("razorpay_order_id")
+        db["wishlist"].create_index([("user_id", 1), ("project_id", 1)], unique=True)
+        db["reviews"].create_index("project_id")
+        db["notifications"].create_index("user_id")
+        db["webhook_events"].create_index("created_at", expireAfterSeconds=60*60*24*7)  # 7 days
+        db["audit_logs"].create_index("created_at", expireAfterSeconds=60*60*24*30)     # 30 days
+        db["audit_logs"].create_index("actor_email")
 
-    # Run database migration automatically
-    try:
-        from migrate import run_migration
-        run_migration()
+        # Run database migration automatically
+        try:
+            from migrate import run_migration
+            run_migration()
+        except Exception as e:
+            print(f"Failed to auto-run migration: {e}")
+
+        seed_if_empty()
     except Exception as e:
-        print(f"Failed to auto-run migration: {e}")
-
-    seed_if_empty()
+        print(f"Database initialization warning: {e}")
 
 def now_utc():
     return datetime.utcnow()
