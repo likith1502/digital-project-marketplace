@@ -37,7 +37,7 @@ def init_db(app):
 
         # Run database migration automatically
         try:
-            from migrate import run_migration
+            from migrations.migrate import run_migration
             run_migration()
         except Exception as e:
             print(f"Failed to auto-run migration: {e}")
@@ -57,7 +57,7 @@ def seed_if_empty():
             import os
             # Ensure parent/current dir is in python path
             sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-            from seed_db import seed_database
+            from scripts.seed_db import seed_database
             seed_database()
         except Exception as e:
             print(f"Failed to run comprehensive database seeder: {e}")

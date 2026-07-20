@@ -15,10 +15,10 @@ def get_artifact_size_bytes(art):
     if filename:
         try:
             import os
-            base_folder = current_app.config.get("UPLOAD_FOLDER", "app/uploads")
+            base_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
             file_path = os.path.join(base_folder, filename)
             if not os.path.exists(file_path):
-                file_path = os.path.join("app/uploads", filename)
+                file_path = os.path.join("uploads", filename)
             if os.path.exists(file_path):
                 return os.path.getsize(file_path)
         except Exception:

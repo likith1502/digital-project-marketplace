@@ -59,11 +59,11 @@ try {
 
   // Copy seed_db.py and migrate.py
   fs.copyFileSync(
-    path.join('backend', 'seed_db.py'),
+    path.join('backend', 'scripts', 'seed_db.py'),
     path.join(apiFuncDir, 'seed_db.py')
   );
   fs.copyFileSync(
-    path.join('backend', 'migrate.py'),
+    path.join('backend', 'migrations', 'migrate.py'),
     path.join(apiFuncDir, 'migrate.py')
   );
 

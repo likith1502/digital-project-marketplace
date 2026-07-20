@@ -39,7 +39,7 @@ def public_uploads(key: str):
         return send_from_directory(base, key, as_attachment=False)
     
     # Check fallback subfolders inside app context
-    fallback_path = os.path.join("app/uploads", key)
+    fallback_path = os.path.join("uploads", key)
     if os.path.exists(fallback_path) and os.path.isfile(fallback_path):
         # Determine subdirectory path
         sub_dir = os.path.abspath(os.path.dirname(fallback_path))

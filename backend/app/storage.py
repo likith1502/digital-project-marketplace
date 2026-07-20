@@ -84,7 +84,7 @@ def get_storage():
     return LocalStorage(current_app.config["UPLOAD_FOLDER"])
 
 def ensure_dummy_files():
-    base = Path(current_app.config["UPLOAD_FOLDER"]) if current_app else Path("app/uploads")
+    base = Path(current_app.config["UPLOAD_FOLDER"]) if current_app else Path("uploads")
     demo = base / "demo"
     demo.mkdir(parents=True, exist_ok=True)
 

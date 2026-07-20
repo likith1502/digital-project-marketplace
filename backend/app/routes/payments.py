@@ -561,15 +561,15 @@ def download_artifact(project_id, filename):
         return redirect(presigned)
 
     # LocalStorage handling
-    # Check if UPLOAD_FOLDER is app/uploads or absolute
+    # Check if UPLOAD_FOLDER is uploads or absolute
     base_folder = os.path.abspath(current_app.config["UPLOAD_FOLDER"])
     # Check uploads/demo placeholders
     file_path = os.path.join(base_folder, filename)
     if not os.path.exists(file_path):
         # Check relative fallback in app context
-        fallback_path = os.path.join("app/uploads", filename)
+        fallback_path = os.path.join("uploads", filename)
         if os.path.exists(fallback_path):
-            return send_from_directory(os.path.abspath("app/uploads"), filename, as_attachment=True)
+            return send_from_directory(os.path.abspath("uploads"), filename, as_attachment=True)
         return jsonify({"error": "Physical file does not exist on server disk"}), 404
 
     return send_from_directory(base_folder, filename, as_attachment=True)
@@ -721,7 +721,7 @@ def download_domain_zip(domain_id):
             # Resolve path
             file_path = os.path.join(base_folder, filename)
             if not os.path.exists(file_path):
-                file_path = os.path.join(os.path.abspath("app/uploads"), filename)
+                file_path = os.path.join(os.path.abspath("uploads"), filename)
                 
             if os.path.exists(file_path):
                 zip_file.write(file_path, original_name)

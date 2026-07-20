@@ -50,7 +50,7 @@ def create_app():
     if os.getenv("VERCEL") == "1":
         app.config["UPLOAD_FOLDER"] = "/tmp"
     else:
-        app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "app/uploads")
+        app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "uploads")
 
     app.config["RATE_LIMIT_LOGIN_PER_MIN"] = int(os.getenv("RATE_LIMIT_LOGIN_PER_MIN", "10"))
     app.config["RATE_LIMIT_REGISTER_PER_MIN"] = int(os.getenv("RATE_LIMIT_REGISTER_PER_MIN", "5"))
