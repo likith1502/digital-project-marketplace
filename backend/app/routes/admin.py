@@ -161,7 +161,6 @@ def list_orders():
 # -----------------
 # Domains CRUD
 # -----------------
-@bp.post("/categories")
 @bp.post("/domains")
 @jwt_required
 @admin_required
@@ -223,7 +222,6 @@ def create_domain():
         
     return jsonify({"success": True, "message": "Domain created successfully."}), 201
 
-@bp.put("/categories/<cat_id>")
 @bp.put("/domains/<cat_id>")
 @jwt_required
 @admin_required
@@ -284,7 +282,6 @@ def edit_domain(cat_id):
 
     return jsonify({"success": True, "message": "Domain updated successfully."}), 200
 
-@bp.delete("/categories/<cat_id>")
 @bp.delete("/domains/<cat_id>")
 @jwt_required
 @admin_required
@@ -1239,3 +1236,87 @@ def update_book_promotion():
     )
     
     return jsonify({"success": True, "message": "Book promotion settings updated successfully."}), 200
+
+# -----------------
+# Categories CRUD
+# -----------------
+@bp.post("/categories")
+@jwt_required
+@admin_required
+def create_category():
+    db = get_db()
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or "").strip()
+    description = (data.get("description") or "").strip()
+
+    if not name:
+        return jsonify({"error": "Category name is required"}), 400
+
+    try:
+        db["categories"].insert_one({
+            "name": name,
+            "description": description,
+            "created_at": now_utc(),
+            "updated_at": now_utc()
+        })
+    except DuplicateKeyError:
+        return jsonify({"error": "Category name already exists"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Database save failed: {e}"}), 400
+
+    return jsonify({"success": True, "message": "Category created successfully."}), 201
+
+@bp.put("/categories/<cat_id>")
+@jwt_required
+@admin_required
+def edit_category(cat_id):
+    db = get_db()
+    cid = oid(cat_id)
+    if not cid:
+        return jsonify({"error": "Invalid Category ID"}), 400
+
+    category = db["categories"].find_one({"_id": cid})
+    if not category:
+        return jsonify({"error": "Category not found"}), 404
+
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or "").strip() or category.get("name")
+    description = (data.get("description") or "").strip() or category.get("description")
+
+    update_doc = {
+        "name": name,
+        "description": description,
+        "updated_at": now_utc()
+    }
+
+    try:
+        db["categories"].update_one({"_id": cid}, {"$set": update_doc})
+        if name != category.get("name"):
+            db["domains"].update_many({"categoryId": str(cid)}, {"$set": {"categoryName": name}})
+            db["domains"].update_many({"categoryId": cid}, {"$set": {"categoryName": name}})
+    except DuplicateKeyError:
+        return jsonify({"error": "Category name already exists"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Database update failed: {e}"}), 400
+
+    return jsonify({"success": True, "message": "Category updated successfully."}), 200
+
+@bp.delete("/categories/<cat_id>")
+@jwt_required
+@admin_required
+def delete_category(cat_id):
+    db = get_db()
+    cid = oid(cat_id)
+    if not cid:
+        return jsonify({"error": "Invalid Category ID"}), 400
+
+    category = db["categories"].find_one({"_id": cid})
+    if not category:
+        return jsonify({"error": "Category not found"}), 404
+
+    domain_cnt = db["domains"].count_documents({"$or": [{"categoryId": cid}, {"categoryId": cat_id}, {"categoryName": category.get("name")}]})
+    if domain_cnt > 0:
+        return jsonify({"error": "Delete all Domains under this Category before deleting it."}), 400
+
+    db["categories"].delete_one({"_id": cid})
+    return jsonify({"success": True, "message": "Category deleted successfully."}), 200

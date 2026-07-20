@@ -28,7 +28,8 @@ function normalizeImgSrc(src: string): string {
 
 type ViewState = 
   | { type: "domains" }
-  | { type: "projects"; domain: any };
+  | { type: "projects"; domain: any }
+  | { type: "categories" };
 
 function DomainsAdmin() {
   const [view, setView] = useState<ViewState>({ type: "domains" });
@@ -43,6 +44,10 @@ function DomainsAdmin() {
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
 
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+
   const loadDomains = async () => {
     setLoading(true);
     try {
@@ -50,6 +55,18 @@ function DomainsAdmin() {
       setDomains(res.data);
     } catch (err) {
       console.error("Failed to load domains:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    setLoading(true);
+    try {
+      const res = await API.get("/api/categories");
+      setCategoriesList(res.data);
+    } catch (err) {
+      console.error("Failed to load categories:", err);
     } finally {
       setLoading(false);
     }
@@ -70,10 +87,22 @@ function DomainsAdmin() {
   useEffect(() => {
     if (view.type === "domains") {
       loadDomains();
+    } else if (view.type === "categories") {
+      loadCategories();
     } else {
       loadProjects(view.domain.id);
     }
   }, [view]);
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this category?")) return;
+    try {
+      await API.delete(`/api/admin/categories/${id}`);
+      loadCategories();
+    } catch (err: any) {
+      alert("Failed to delete category: " + (err.response?.data?.error || err.message));
+    }
+  };
 
   const handleDeleteDomain = async (id: string, count: number) => {
     if (count > 0) {
@@ -102,8 +131,96 @@ function DomainsAdmin() {
   };
 
   return (
-    <AdminShell title={view.type === "domains" ? "Domains" : `Projects: ${view.domain.name}`}>
-      {view.type === "domains" ? (
+    <AdminShell title={view.type === "domains" ? "Domains" : view.type === "categories" ? "Categories" : `Projects: ${view.domain.name}`}>
+      {/* View Switcher Toggler */}
+      {view.type !== "projects" && (
+        <div className="flex gap-4 border-b border-border pb-4 mb-6">
+          <button
+            onClick={() => setView({ type: "domains" })}
+            className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded transition-colors ${
+              view.type === "domains" ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Domains
+          </button>
+          <button
+            onClick={() => setView({ type: "categories" })}
+            className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded transition-colors ${
+              view.type === "categories" ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Categories
+          </button>
+        </div>
+      )}
+
+      {view.type === "categories" ? (
+        <>
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+            <div>
+              <h1 className="font-serif text-3xl mb-1 text-left">Manage Categories</h1>
+              <p className="text-muted-foreground text-sm text-left">
+                Create and edit your top-level parent categories.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedCategory(null);
+                setCategoryModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest rounded-md"
+            >
+              <Plus className="size-4" /> New Category
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground font-mono">Loading categories...</div>
+          ) : (
+            <div className="border border-border bg-card rounded-md overflow-hidden">
+              <div className="grid grid-cols-12 px-6 py-3 border-b border-border font-mono text-[10px] uppercase tracking-widest text-muted-foreground text-left">
+                <div className="col-span-8">Category Name</div>
+                <div className="col-span-4 text-right">Actions</div>
+              </div>
+              {categoriesList.map((c) => (
+                <div
+                  key={c.id}
+                  className="grid grid-cols-12 px-6 py-4 border-b border-border last:border-0 items-center hover:bg-accent/30 text-left"
+                >
+                  <div className="col-span-8 min-w-0">
+                    <div className="font-medium truncate">{c.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{c.description}</div>
+                  </div>
+                  <div className="col-span-4 flex justify-end gap-2 items-center">
+                    <button
+                      onClick={() => {
+                        setSelectedCategory(c);
+                        setCategoryModalOpen(true);
+                      }}
+                      className="size-8 grid place-items-center rounded-md hover:bg-accent text-muted-foreground"
+                      title="Edit Category"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(c.id)}
+                      className="size-8 grid place-items-center rounded-md hover:bg-destructive/10 text-destructive"
+                      title="Delete Category"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {categoriesList.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground font-mono">
+                  No top-level categories created yet.
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      ) : view.type === "domains" ? (
         <>
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
@@ -273,6 +390,20 @@ function DomainsAdmin() {
         </>
       )}
 
+      {/* Category Edit/Create Modal */}
+      <AnimatePresence>
+        {categoryModalOpen && (
+          <RealCategoryModal
+            category={selectedCategory}
+            onClose={() => setCategoryModalOpen(false)}
+            onSuccess={() => {
+              setCategoryModalOpen(false);
+              loadCategories();
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Domain Category Edit/Create Modal */}
       <AnimatePresence>
         {domainModalOpen && (
@@ -318,21 +449,42 @@ function DomainCategoryModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(domain?.categoryId || "");
+  const [selectedCategoryName, setSelectedCategoryName] = useState(domain?.categoryName || domain?.category || "");
   const [name, setName] = useState(domain?.name || "");
-  const categoryName = "General";
   const [description, setDescription] = useState(domain?.description || "");
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    API.get("/api/categories")
+      .then((res) => {
+        setCategories(res.data);
+        if (res.data.length > 0) {
+          const found = res.data.find((c: any) => c.id === (domain?.categoryId || "") || c.name === (domain?.categoryName || domain?.category || ""));
+          if (found) {
+            setSelectedCategoryId(found.id);
+            setSelectedCategoryName(found.name);
+          } else if (!domain?.categoryId) {
+            setSelectedCategoryId(res.data[0].id);
+            setSelectedCategoryName(res.data[0].name);
+          }
+        }
+      })
+      .catch((err) => console.error("Failed to load categories:", err));
+  }, [domain]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return alert("Domain name is required");
+    if (!selectedCategoryId) return alert("Parent category is required");
 
     setLoading(true);
     const fd = new FormData();
     fd.append("name", name);
-    fd.append("categoryName", categoryName);
-    fd.append("categoryId", categoryName);
+    fd.append("categoryName", selectedCategoryName);
+    fd.append("categoryId", selectedCategoryId);
     fd.append("description", description);
     if (thumbnail) {
       fd.append("thumbnail", thumbnail);
@@ -386,6 +538,34 @@ function DomainCategoryModal({
           </div>
           
           <div className="p-6 space-y-4 text-left">
+            <label className="block">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">
+                Parent Category *
+              </div>
+              {categories.length === 0 ? (
+                <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-md">
+                  No Categories found. Please close this modal and create a parent Category first in the Category Manager.
+                </div>
+              ) : (
+                <select
+                  required
+                  value={selectedCategoryId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedCategoryId(val);
+                    const matched = categories.find((c) => c.id === val);
+                    if (matched) setSelectedCategoryName(matched.name);
+                  }}
+                  className="w-full h-11 px-3 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/40 text-sm"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </label>
 
             <label className="block">
               <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">
@@ -863,6 +1043,115 @@ function ProjectBundleModal({
               className="px-5 py-2 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest rounded-md disabled:opacity-60"
             >
               {loading ? "Saving..." : project ? "Save Changes" : "Create"}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function RealCategoryModal({
+  category,
+  onClose,
+  onSuccess,
+}: {
+  category: any | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState(category?.name || "");
+  const [description, setDescription] = useState(category?.description || "");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return alert("Category name is required");
+
+    setLoading(true);
+    try {
+      if (category) {
+        await API.put(`/api/admin/categories/${category.id}`, { name, description });
+      } else {
+        await API.post("/api/admin/categories", { name, description });
+      }
+      onSuccess();
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to save category: " + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm grid place-items-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.96 }}
+        className="w-full max-w-md bg-card border border-border rounded-md shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <form onSubmit={handleSubmit}>
+          <div className="flex items-center justify-between p-6 border-b border-border">
+            <div className="text-left">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary">
+                Top-Level Category Manager
+              </div>
+              <h3 className="font-serif text-2xl">{category ? "Edit Category" : "Create Category"}</h3>
+            </div>
+            <button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-full hover:bg-accent">
+              <X className="size-4" />
+            </button>
+          </div>
+          
+          <div className="p-6 space-y-4 text-left">
+            <label className="block">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">
+                Category Name *
+              </div>
+              <input
+                required
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full h-11 px-3 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+            </label>
+            
+            <label className="block">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">
+                Description
+              </div>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full min-h-[80px] p-3 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/40 text-sm"
+              />
+            </label>
+          </div>
+
+          <div className="p-6 border-t border-border flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-mono uppercase tracking-widest rounded-md hover:bg-accent"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-5 py-2 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest rounded-md disabled:opacity-60"
+            >
+              {loading ? "Saving..." : category ? "Save Changes" : "Create"}
             </button>
           </div>
         </form>

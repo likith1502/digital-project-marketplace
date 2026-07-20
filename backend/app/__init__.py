@@ -13,9 +13,15 @@ def create_app():
 
     # Configs
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", app.config["SECRET_KEY"])
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET", os.getenv("JWT_SECRET_KEY", app.config["SECRET_KEY"]))
     app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/tech_marketplace")
-    app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", "http://localhost:5000")
+    
+    # Resolve dynamic URLs if running on Vercel
+    vercel_url = os.getenv("VERCEL_URL")
+    default_base_url = f"https://{vercel_url}" if vercel_url else "http://localhost:5000"
+    default_frontend_url = f"https://{vercel_url}" if vercel_url else "http://localhost:8080"
+    
+    app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", default_base_url)
     app.config["MAIL_SENDER"] = os.getenv("MAIL_SENDER", "no-reply@example.com")
     
     # Default Contact Information
@@ -37,11 +43,16 @@ def create_app():
     app.config["RAZORPAY_WEBHOOK_SECRET"] = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
 
     app.config["STORAGE_BACKEND"] = os.getenv("STORAGE_BACKEND", "local").lower()
-    app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "app/uploads")
+    
+    # Enable tmp directory storage if running on Vercel's read-only file system
+    if os.getenv("VERCEL") == "1":
+        app.config["UPLOAD_FOLDER"] = "/tmp"
+    else:
+        app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "app/uploads")
 
     app.config["RATE_LIMIT_LOGIN_PER_MIN"] = int(os.getenv("RATE_LIMIT_LOGIN_PER_MIN", "10"))
     app.config["RATE_LIMIT_REGISTER_PER_MIN"] = int(os.getenv("RATE_LIMIT_REGISTER_PER_MIN", "5"))
-    app.config["FRONTEND_URL"] = os.getenv("FRONTEND_URL", "http://localhost:8080")
+    app.config["FRONTEND_URL"] = os.getenv("FRONTEND_URL", default_frontend_url)
 
     # Max upload size: 50 MB (prevents Flask from hanging on very large uploads)
     app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
@@ -55,13 +66,37 @@ def create_app():
     init_db(app)
     mail_ext.init_app(app)
 
-    # Enable CORS for all REST API endpoints
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    # Enable CORS for restricted domains (localhost, frontend URL, and dynamic Vercel domains)
+    allowed_origins = [
+        "http://localhost:8080",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:5000",
+        r"https://.*\.vercel\.app"
+    ]
+    configured_frontend = app.config.get("FRONTEND_URL")
+    if configured_frontend and configured_frontend not in allowed_origins:
+        allowed_origins.append(configured_frontend)
+        
+    CORS(
+        app,
+        resources={r"/api/*": {
+            "origins": allowed_origins,
+            "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        }},
+        supports_credentials=True
+    )
+
+    @app.route("/health")
+    @app.route("/api/health")
+    def health_check():
+        return jsonify({"status": "running"}), 200
 
     # Register standard blueprints
     from .routes.auth import bp as auth_bp
     from .routes.projects import bp as projects_bp
-    from .routes.categories import bp as categories_bp
+    from .routes.categories import bp as categories_bp, categories_collection_bp
     from .routes.reviews import bp as reviews_bp
     from .routes.wishlist import bp as wishlist_bp
     from .routes.payments import bp as payments_bp
@@ -72,7 +107,7 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(projects_bp, url_prefix="/api/projects")
     app.register_blueprint(categories_bp, url_prefix="/api/domains", name="domains")
-    app.register_blueprint(categories_bp, url_prefix="/api/categories")
+    app.register_blueprint(categories_collection_bp, url_prefix="/api/categories")
     app.register_blueprint(reviews_bp, url_prefix="/api/reviews")
     app.register_blueprint(wishlist_bp, url_prefix="/api/wishlist")
     app.register_blueprint(payments_bp, url_prefix="/api")

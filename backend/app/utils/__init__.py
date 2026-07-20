@@ -34,15 +34,16 @@ def validate_uploaded_file(file_storage, is_thumbnail=False) -> str | None:
         if size_bytes > 5 * 1024 * 1024:
             return "Thumbnail size exceeds limit of 5MB."
     else:
-        allowed_docs = {"pdf", "ppt", "pptx", "doc", "docx"}
+        allowed_artifacts = current_app.config.get("ALLOWED_ARTIFACT_EXTS", {"zip", "pdf", "ppt", "pptx", "doc", "docx", "txt"})
         if ext == "zip":
             if size_bytes > 500 * 1024 * 1024:
                 return "File size exceeds limit of 500MB for ZIP files."
-        elif ext in allowed_docs:
+        elif ext in allowed_artifacts:
             if size_bytes > 100 * 1024 * 1024:
-                return "File size exceeds limit of 100MB for document files."
+                return "File size exceeds limit of 100MB for document/code files."
         else:
-            return "Invalid file type. Allowed: ZIP, PDF, PPT, PPTX, DOC, DOCX"
+            allowed_str = ", ".join(sorted(list(allowed_artifacts))).upper()
+            return f"Invalid file type. Allowed: {allowed_str}"
             
     return None
 

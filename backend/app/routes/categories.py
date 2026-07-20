@@ -72,3 +72,19 @@ def list_domain_projects(domain_id):
     from .projects import serialize_project
     projs = [serialize_project(p, db) for p in cursor]
     return jsonify(projs), 200
+
+categories_collection_bp = Blueprint("categories_collection", __name__)
+
+@categories_collection_bp.get("")
+def list_categories():
+    db = get_db()
+    cursor = db["categories"].find({}).sort("name", 1)
+    cats = []
+    for c in cursor:
+        cats.append({
+            "id": str(c["_id"]),
+            "name": c.get("name", ""),
+            "description": c.get("description", ""),
+            "createdAt": c.get("created_at", c.get("createdAt", "")).isoformat() if hasattr(c.get("created_at"), "isoformat") else str(c.get("created_at") or c.get("createdAt") or ""),
+        })
+    return jsonify(cats), 200

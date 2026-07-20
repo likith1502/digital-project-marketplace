@@ -3,7 +3,7 @@ import { z } from "zod";
 import { motion } from "framer-motion";
 import { XCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getDomainBySlug } from "@/lib/data";
+import { getDomainBySlug, getProjectById } from "@/lib/data";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 
@@ -25,7 +25,13 @@ function FailedPage() {
 
   useEffect(() => {
     if (domain) {
-      getDomainBySlug(domain).then(setD);
+      getProjectById(domain).then((proj) => {
+        if (proj) {
+          setD(proj);
+        } else {
+          getDomainBySlug(domain).then(setD);
+        }
+      });
     }
   }, [domain]);
 
@@ -64,7 +70,7 @@ function FailedPage() {
             <div className="border border-border bg-background/50 rounded-md p-4 text-left space-y-2 mb-8">
               <div className="flex justify-between items-center text-xs">
                 <span className="font-mono uppercase tracking-wider text-muted-foreground">Item</span>
-                <span className="font-medium text-foreground">{d.name}</span>
+                <span className="font-medium text-foreground">{d.projectName || d.name}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="font-mono uppercase tracking-wider text-muted-foreground">Price</span>
