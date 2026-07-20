@@ -8,9 +8,9 @@ const DEFAULT_PLACEHOLDER = "https://images.unsplash.com/photo-1618005182384-a83
 
 function normalizeImgSrc(src: string): string {
   if (!src) return DEFAULT_PLACEHOLDER;
-  src = src.replace("http://127.0.0.1:5000", "http://localhost:5000");
   if (src.startsWith("http")) return src;
-  return `http://localhost:5000${src.startsWith("/") ? "" : "/"}${src}`;
+  const baseUrl = API.defaults.baseURL || "http://localhost:5000";
+  return `${baseUrl}${src.startsWith("/") ? "" : "/"}${src}`;
 }
 
 export function DomainCard({ d, index = 0 }: { d: Domain; index?: number }) {

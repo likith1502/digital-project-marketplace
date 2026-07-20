@@ -3,7 +3,10 @@ node_modules
 backend/venv
 frontend/node_modules
 frontend/dist
+frontend/.vercel
+.vercel
 .env
 *.pyc
 __pycache__
 .DS_Store
+
