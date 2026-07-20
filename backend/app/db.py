@@ -8,7 +8,11 @@ db = None
 def init_db(app):
     global client, db
     try:
-        client = MongoClient(app.config["MONGO_URI"], serverSelectionTimeoutMS=5000)
+        mongo_uri = app.config.get("MONGO_URI")
+        if not mongo_uri:
+            print("Database initialization warning: MONGO_URI environment variable is missing!")
+            return
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
         # Mongo URI includes DB name; if not, fallback
         try:
             _default_db = client.get_default_database()

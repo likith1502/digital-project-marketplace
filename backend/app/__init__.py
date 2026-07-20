@@ -14,7 +14,9 @@ def create_app():
     # Configs
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET", os.getenv("JWT_SECRET_KEY", app.config["SECRET_KEY"]))
-    app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/tech_marketplace")
+    is_vercel = (os.getenv("VERCEL") == "1" or os.getenv("VERCEL_ENV") is not None)
+    default_mongo = "" if is_vercel else "mongodb://localhost:27017/tech_marketplace"
+    app.config["MONGO_URI"] = os.getenv("MONGO_URI") or default_mongo
     
     # Resolve dynamic URLs if running on Vercel
     vercel_url = os.getenv("VERCEL_URL")
@@ -62,9 +64,16 @@ def create_app():
     app.config["ALLOWED_ARTIFACT_EXTS"] = {"zip","pdf","csv","sql","db","sqlite","txt","doc","docx","ppt","pptx","ipynb","py","java","c","cpp","js","json"}
     app.config["MAX_UPLOAD_MB"] = 25
 
-    # Initialize extensions and DB
-    init_db(app)
-    mail_ext.init_app(app)
+    # Initialize extensions and DB (wrapped to prevent startup blocks)
+    try:
+        init_db(app)
+    except Exception as e:
+        app.logger.warning(f"Database initialization warning: {e}")
+
+    try:
+        mail_ext.init_app(app)
+    except Exception as e:
+        app.logger.warning(f"Mail extension initialization warning: {e}")
 
     # Enable CORS for restricted domains (localhost, frontend URL, and dynamic Vercel domains)
     allowed_origins = [
@@ -91,29 +100,63 @@ def create_app():
     @app.route("/health")
     @app.route("/api/health")
     def health_check():
-        return jsonify({"status": "running"}), 200
+        return jsonify({"status": "ok"}), 200
 
-    # Register standard blueprints
-    from .routes.auth import bp as auth_bp
-    from .routes.projects import bp as projects_bp
-    from .routes.categories import bp as categories_bp, categories_collection_bp
-    from .routes.reviews import bp as reviews_bp
-    from .routes.wishlist import bp as wishlist_bp
-    from .routes.payments import bp as payments_bp
-    from .routes.webhooks import bp as webhooks_bp
-    from .routes.admin import bp as admin_bp
-    from .routes.main import bp as main_bp
+    # Register blueprints with fallback exception handling
+    try:
+        from .routes.auth import bp as auth_bp
+        app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    except Exception:
+        app.logger.exception("Failed to register auth blueprint")
 
-    app.register_blueprint(auth_bp, url_prefix="/api/auth")
-    app.register_blueprint(projects_bp, url_prefix="/api/projects")
-    app.register_blueprint(categories_bp, url_prefix="/api/domains", name="domains")
-    app.register_blueprint(categories_collection_bp, url_prefix="/api/categories")
-    app.register_blueprint(reviews_bp, url_prefix="/api/reviews")
-    app.register_blueprint(wishlist_bp, url_prefix="/api/wishlist")
-    app.register_blueprint(payments_bp, url_prefix="/api")
-    app.register_blueprint(admin_bp, url_prefix="/api/admin")
-    app.register_blueprint(webhooks_bp, url_prefix="/api/webhooks")
-    app.register_blueprint(main_bp, url_prefix="/api")
+    try:
+        from .routes.projects import bp as projects_bp
+        app.register_blueprint(projects_bp, url_prefix="/api/projects")
+    except Exception:
+        app.logger.exception("Failed to register projects blueprint")
+
+    try:
+        from .routes.categories import bp as categories_bp, categories_collection_bp
+        app.register_blueprint(categories_bp, url_prefix="/api/domains", name="domains")
+        app.register_blueprint(categories_collection_bp, url_prefix="/api/categories")
+    except Exception:
+        app.logger.exception("Failed to register categories/domains blueprints")
+
+    try:
+        from .routes.reviews import bp as reviews_bp
+        app.register_blueprint(reviews_bp, url_prefix="/api/reviews")
+    except Exception:
+        app.logger.exception("Failed to register reviews blueprint")
+
+    try:
+        from .routes.wishlist import bp as wishlist_bp
+        app.register_blueprint(wishlist_bp, url_prefix="/api/wishlist")
+    except Exception:
+        app.logger.exception("Failed to register wishlist blueprint")
+
+    try:
+        from .routes.payments import bp as payments_bp
+        app.register_blueprint(payments_bp, url_prefix="/api")
+    except Exception:
+        app.logger.exception("Failed to register payments blueprint")
+
+    try:
+        from .routes.admin import bp as admin_bp
+        app.register_blueprint(admin_bp, url_prefix="/api/admin")
+    except Exception:
+        app.logger.exception("Failed to register admin blueprint")
+
+    try:
+        from .routes.webhooks import bp as webhooks_bp
+        app.register_blueprint(webhooks_bp, url_prefix="/api/webhooks")
+    except Exception:
+        app.logger.exception("Failed to register webhooks blueprint")
+
+    try:
+        from .routes.main import bp as main_bp
+        app.register_blueprint(main_bp, url_prefix="/api")
+    except Exception:
+        app.logger.exception("Failed to register main blueprint")
 
     # Global JSON error handling
     @app.errorhandler(Exception)

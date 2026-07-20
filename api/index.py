@@ -11,8 +11,12 @@ class VercelPathMiddleware:
         self.wsgi_app = wsgi_app
 
     def __call__(self, environ, start_response):
-        # Extract original URI from Vercel headers
-        original_uri = environ.get('HTTP_X_FORWARDED_URI') or environ.get('HTTP_X_ORIGINAL_URL')
+        # Extract original URI from Vercel headers (HTTP_X_MATCHED_PATH is standard on Vercel)
+        original_uri = (
+            environ.get('HTTP_X_MATCHED_PATH') or
+            environ.get('HTTP_X_FORWARDED_URI') or
+            environ.get('HTTP_X_ORIGINAL_URL')
+        )
         if original_uri:
             # Strip query string to isolate PATH_INFO
             path_only = original_uri.split('?')[0]

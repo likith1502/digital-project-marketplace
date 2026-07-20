@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, redirect, send_from_directory
 from bson import ObjectId
 import os
-import razorpay
 import secrets
 
 from ..db import get_db, now_utc
