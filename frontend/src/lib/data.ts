@@ -274,7 +274,12 @@ export function addPurchase(p: Purchase) {
 /* Admin authentication */
 export async function adminLogin(email: string, password: string): Promise<boolean> {
   try {
-    const res = await API.post("/api/admin/login", { email, password });
+    let res;
+    try {
+      res = await API.post("/api/auth/login", { email, password });
+    } catch (e) {
+      res = await API.post("/api/admin/login", { email, password });
+    }
     if (res.data && res.data.access_token) {
       localStorage.setItem("ph-admin-token", res.data.access_token);
       localStorage.setItem(
@@ -292,7 +297,12 @@ export async function adminLogin(email: string, password: string): Promise<boole
 
 export async function adminRegister(name: string, email: string, password: string): Promise<boolean> {
   try {
-    const res = await API.post("/api/admin/register", { name, email, password });
+    let res;
+    try {
+      res = await API.post("/api/auth/register", { name, email, password });
+    } catch (e) {
+      res = await API.post("/api/admin/register", { name, email, password });
+    }
     if (res.data && res.data.access_token) {
       localStorage.setItem("ph-admin-token", res.data.access_token);
       localStorage.setItem(

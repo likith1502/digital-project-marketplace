@@ -13,6 +13,16 @@ from .projects import serialize_project
 
 bp = Blueprint("admin", __name__)
 
+@bp.post("/login")
+def admin_login():
+    from .auth import login
+    return login()
+
+@bp.post("/register")
+def admin_register():
+    from .auth import register
+    return register()
+
 # -----------------
 # Analytics endpoint
 # -----------------
