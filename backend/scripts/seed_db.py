@@ -9,9 +9,24 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from app.security import hash_password
 
 def seed_database():
+    from dotenv import load_dotenv
+    load_dotenv(override=False)
+    
     print("Connecting to MongoDB...")
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/tech_marketplace")
-    client = MongoClient(mongo_uri)
+    mongo_uri = os.getenv("MONGO_URI")
+    if not mongo_uri:
+        raise ValueError("MONGO_URI environment variable is missing.")
+    if not mongo_uri.startswith("mongodb"):
+        raise ValueError("Invalid MONGO_URI format.")
+        
+    client = MongoClient(
+        mongo_uri,
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=5000,
+        socketTimeoutMS=5000
+    )
+    # Force connection ping check
+    client.admin.command("ping")
     
     # Extract DB name from URI or use default
     try:

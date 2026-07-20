@@ -8,15 +8,19 @@ from .extensions import mail_ext
 from .db import init_db
 
 def create_app():
-    load_dotenv()
+    load_dotenv(override=False)
     app = Flask(__name__)
 
     # Configs
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET", os.getenv("JWT_SECRET_KEY", app.config["SECRET_KEY"]))
-    is_vercel = (os.getenv("VERCEL") == "1" or os.getenv("VERCEL_ENV") is not None)
-    default_mongo = "" if is_vercel else "mongodb://localhost:27017/tech_marketplace"
-    app.config["MONGO_URI"] = os.getenv("MONGO_URI") or default_mongo
+    
+    mongo_uri = os.getenv("MONGO_URI")
+    if not mongo_uri:
+        raise ValueError("MONGO_URI environment variable is missing.")
+    if not mongo_uri.startswith("mongodb"):
+        raise ValueError("Invalid MONGO_URI format.")
+    app.config["MONGO_URI"] = mongo_uri
     
     # Resolve dynamic URLs if running on Vercel
     vercel_url = os.getenv("VERCEL_URL")

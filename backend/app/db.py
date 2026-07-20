@@ -7,18 +7,32 @@ db = None
 
 def init_db(app):
     global client, db
+    mongo_uri = app.config.get("MONGO_URI")
+    if not mongo_uri:
+        raise ValueError("MONGO_URI environment variable is missing.")
+    if not mongo_uri.startswith("mongodb"):
+        raise ValueError("Invalid MONGO_URI format.")
+    
     try:
-        mongo_uri = app.config.get("MONGO_URI")
-        if not mongo_uri:
-            print("Database initialization warning: MONGO_URI environment variable is missing!")
-            return
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+        client = MongoClient(
+            mongo_uri,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=5000
+        )
+        
+        # Force initial connection via ping check
+        client.admin.command("ping")
+        
         # Mongo URI includes DB name; if not, fallback
         try:
             _default_db = client.get_default_database()
         except Exception:
             _default_db = None
         db = _default_db if _default_db is not None else client["tech_marketplace"]
+        
+        print("MongoDB connected using environment variable.")
+        print(f"Database: {db.name}")
 
         # indexes + TTL
         db["users"].create_index("email", unique=True)

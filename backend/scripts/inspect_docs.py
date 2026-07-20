@@ -2,10 +2,29 @@ import os
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-load_dotenv()
-mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/tech_marketplace")
-client = MongoClient(mongo_uri)
-db = client.get_default_database() if "localhost" not in mongo_uri else client["tech_marketplace"]
+load_dotenv(override=False)
+mongo_uri = os.getenv("MONGO_URI")
+if not mongo_uri:
+    raise ValueError("MONGO_URI environment variable is missing.")
+if not mongo_uri.startswith("mongodb"):
+    raise ValueError("Invalid MONGO_URI format.")
+
+print("Connecting to MongoDB...")
+client = MongoClient(
+    mongo_uri,
+    serverSelectionTimeoutMS=5000,
+    connectTimeoutMS=5000,
+    socketTimeoutMS=5000
+)
+# Force initial connection check
+client.admin.command("ping")
+
+try:
+    db = client.get_default_database()
+except Exception:
+    db = client["tech_marketplace"]
+
+print(f"Using database: {db.name}")
 
 print("--- CATEGORIES ---")
 for cat in db["categories"].find():
